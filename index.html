@@ -26,7 +26,7 @@
         <div class="md:flex md:items-center md:justify-between mb-8">
             <div class="flex-1 min-w-0">
                 <h2 class="text-2xl font-bold leading-7 text-slate-900 sm:text-3xl sm:truncate">
-                    Daftar Belanja Arkas 2026
+                    Referensi Arkas
                 </h2>
             </div>
             <div class="mt-4 flex md:mt-0 md:ml-4">
@@ -46,7 +46,7 @@
                 </div>
                 <input 
                     type="text" 
-                    x-model="search" 
+                    x-model.debounce.300ms="search" 
                     @input="page = 1"
                     placeholder="Cari ID, Nama, atau Rekening..." 
                     class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition"
@@ -55,7 +55,7 @@
             
             <div class="flex items-center space-x-3 text-sm text-slate-600">
                 <label class="font-medium">Data per halaman:</label>
-                <select x-model="perPage" @change="page = 1" class="border-slate-300 rounded-lg py-1.5 px-3 bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500 outline-none">
+                <select x-model="perPage" @change="page = 1" class="border-slate-300 rounded-lg py-1.5 px-3 bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer">
                     <option value="10">10</option>
                     <option value="25">25</option>
                     <option value="50">50</option>
@@ -70,10 +70,38 @@
                 <table class="table-fixed-layout divide-y divide-slate-200">
                     <thead class="bg-slate-50">
                         <tr>
-                            <th class="col-id px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">ID Barang</th>
-                            <th class="col-rekening px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Kode Rekening</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Nama Barang</th>
-                            <th class="col-harga px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase">Harga Maksimal</th>
+                            <th @click="sort('ID Barang')" class="col-id px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase cursor-pointer hover:bg-slate-100 transition">
+                                <div class="flex items-center">
+                                    ID Barang
+                                    <template x-if="sortKey === 'ID Barang'">
+                                        <span x-text="sortDir === 'asc' ? ' ↑' : ' ↓'" class="ml-1 text-blue-600"></span>
+                                    </template>
+                                </div>
+                            </th>
+                            <th @click="sort('Kode Rekening')" class="col-rekening px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase cursor-pointer hover:bg-slate-100 transition">
+                                <div class="flex items-center">
+                                    Kode Rekening
+                                    <template x-if="sortKey === 'Kode Rekening'">
+                                        <span x-text="sortDir === 'asc' ? ' ↑' : ' ↓'" class="ml-1 text-blue-600"></span>
+                                    </template>
+                                </div>
+                            </th>
+                            <th @click="sort('Nama Barang')" class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase cursor-pointer hover:bg-slate-100 transition">
+                                <div class="flex items-center">
+                                    Nama Barang
+                                    <template x-if="sortKey === 'Nama Barang'">
+                                        <span x-text="sortDir === 'asc' ? ' ↑' : ' ↓'" class="ml-1 text-blue-600"></span>
+                                    </template>
+                                </div>
+                            </th>
+                            <th @click="sort('Harga Maksimal')" class="col-harga px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase cursor-pointer hover:bg-slate-100 transition">
+                                <div class="flex items-center justify-end">
+                                    Harga Maksimal
+                                    <template x-if="sortKey === 'Harga Maksimal'">
+                                        <span x-text="sortDir === 'asc' ? ' ↑' : ' ↓'" class="ml-1 text-blue-600"></span>
+                                    </template>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-slate-200" x-cloak>
@@ -89,20 +117,22 @@
                                         <span class="text-[10px] font-normal text-slate-400 mr-0.5 italic">Rp</span>
                                         <span x-text="item['Harga Maksimal']"></span>
                                     </div>
-                                    <div class="text-[9px] text-slate-400 uppercase font-bold" x-text="'PER ' + item['Satuan']"></div>
+                                    <div class="text-[9px] text-slate-400 uppercase font-bold" x-text="'PER ' + (item['Satuan'] || 'SATUAN')"></div>
                                 </td>
                             </tr>
                         </template>
                         
+                        <!-- Loading State -->
                         <template x-if="loading">
                             <tr>
                                 <td colspan="4" class="px-6 py-20 text-center">
                                     <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-                                    <p class="mt-2 text-slate-500 font-medium">Memuat data.json...</p>
+                                    <p class="mt-2 text-slate-500 font-medium">Memuat data...</p>
                                 </td>
                             </tr>
                         </template>
 
+                        <!-- Empty State -->
                         <template x-if="!loading && filteredItems.length === 0">
                             <tr>
                                 <td colspan="4" class="px-6 py-20 text-center text-slate-400">
@@ -138,14 +168,12 @@
         x-transition:leave-end="opacity-0 translate-y-10"
         @click="window.scrollTo({ top: 0, behavior: 'smooth' })"
         class="fixed bottom-8 right-8 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 z-50"
-        title="Kembali ke atas"
     >
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
         </svg>
     </button>
 
-    <!-- Script dimuat terakhir untuk mencegah ReferenceError -->
     <script>
         function barangApp() {
             return {
@@ -155,29 +183,79 @@
                 items: [],
                 loading: true,
                 showToTop: false,
+                sortKey: '',
+                sortDir: 'asc',
                 
                 async fetchData() {
                     this.loading = true;
                     try {
                         const response = await fetch('data.json');
-                        if (!response.ok) throw new Error('Cek file data.json');
+                        if (!response.ok) throw new Error('File data.json tidak ditemukan atau tidak bisa dibaca');
                         const data = await response.json();
                         this.items = Array.isArray(data) ? data : [];
                     } catch (error) {
                         console.error('Fetch Error:', error);
+                        // Fallback data dummy jika fetch gagal untuk keperluan demo
+                        this.items = [];
                     } finally {
                         this.loading = false;
                     }
                 },
 
+                sort(key) {
+                    if (this.sortKey === key) {
+                        this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortKey = key;
+                        this.sortDir = 'asc';
+                    }
+                    this.page = 1;
+                },
+
+                // Fungsi helper untuk membersihkan nominal harga menjadi angka murni
+                parsePrice(price) {
+                    if (typeof price === 'number') return price;
+                    if (!price) return 0;
+                    // Hapus titik ribuan, Rp, dan karakter non-digit lainnya, simpan titik desimal jika ada
+                    const cleaned = String(price).replace(/\./g, '').replace(/,/g, '.').replace(/[^\d.]/g, '');
+                    return parseFloat(cleaned) || 0;
+                },
+
                 get filteredItems() {
-                    if (!this.search) return this.items;
-                    const q = this.search.toLowerCase();
-                    return this.items.filter(item => {
-                        return String(item['Nama Barang'] || '').toLowerCase().includes(q) ||
-                               String(item['ID Barang'] || '').toLowerCase().includes(q) ||
-                               String(item['Kode Rekening'] || '').toLowerCase().includes(q);
-                    });
+                    let results = [...this.items];
+
+                    // 1. Filter pencarian
+                    if (this.search) {
+                        const q = this.search.toLowerCase();
+                        results = results.filter(item => {
+                            return String(item['Nama Barang'] || '').toLowerCase().includes(q) ||
+                                   String(item['ID Barang'] || '').toLowerCase().includes(q) ||
+                                   String(item['Kode Rekening'] || '').toLowerCase().includes(q);
+                        });
+                    }
+
+                    // 2. Logika Pengurutan
+                    if (this.sortKey) {
+                        results.sort((a, b) => {
+                            let valA, valB;
+
+                            if (this.sortKey === 'Harga Maksimal') {
+                                // Pastikan diurutkan sebagai angka murni
+                                valA = this.parsePrice(a[this.sortKey]);
+                                valB = this.parsePrice(b[this.sortKey]);
+                            } else {
+                                // Urutkan sebagai teks
+                                valA = String(a[this.sortKey] || '').toLowerCase();
+                                valB = String(b[this.sortKey] || '').toLowerCase();
+                            }
+
+                            if (valA < valB) return this.sortDir === 'asc' ? -1 : 1;
+                            if (valA > valB) return this.sortDir === 'asc' ? 1 : -1;
+                            return 0;
+                        });
+                    }
+
+                    return results;
                 },
 
                 get totalPages() {
@@ -192,12 +270,12 @@
                     return this.filteredItems.slice(this.startIndex, this.startIndex + parseInt(this.perPage));
                 },
 
-                nextPage() { if (this.page < this.totalPages) this.page++; },
-                prevPage() { if (this.page > 1) this.page--; }
+                nextPage() { if (this.page < this.totalPages) { this.page++; window.scrollTo({ top: 0, behavior: 'smooth' }); } },
+                prevPage() { if (this.page > 1) { this.page--; window.scrollTo({ top: 0, behavior: 'smooth' }); } }
             }
         }
     </script>
-    <!-- Alpine JS dimuat setelah fungsi didefinisikan -->
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    <!-- Alpine.js -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
 </body>
 </html>
