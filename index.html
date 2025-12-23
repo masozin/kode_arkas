@@ -178,7 +178,7 @@
             return {
                 search: '',
                 page: 1,
-                perPage: 25,
+                perPage: 50,
                 items: [],
                 loading: true,
                 showToTop: false,
@@ -199,16 +199,53 @@
                     }
                 },
 
-                // FUNGSI HIGHLIGHT BARU
+                // Logika Filter Multi-Kata
+                get filteredItems() {
+                    let results = [...this.items];
+                    if (this.search.trim()) {
+                        // Memecah input jadi array kata (filter spasi kosong)
+                        const keywords = this.search.toLowerCase().split(' ').filter(k => k.length > 0);
+                        
+                        results = results.filter(item => {
+                            const targetText = (
+                                String(item['Nama Barang'] || '') + ' ' + 
+                                String(item['ID Barang'] || '') + ' ' + 
+                                String(item['Kode Rekening'] || '')
+                            ).toLowerCase();
+                            
+                            // HARUS mengandung SEMUA kata kunci (Logika AND)
+                            return keywords.every(kw => targetText.includes(kw));
+                        });
+                    }
+
+                    // Logika Sortir (Sama seperti sebelumnya)
+                    if (this.sortKey) {
+                        results.sort((a, b) => {
+                            let aVal = a[this.sortKey], bVal = b[this.sortKey];
+                            if (this.sortKey === 'Harga Maksimal') {
+                                aVal = parseFloat(String(aVal).replace(/[^\d]/g, '')) || 0;
+                                bVal = parseFloat(String(bVal).replace(/[^\d]/g, '')) || 0;
+                            }
+                            if (aVal < bVal) return this.sortDir === 'asc' ? -1 : 1;
+                            if (aVal > bVal) return this.sortDir === 'asc' ? 1 : -1;
+                            return 0;
+                        });
+                    }
+                    return results;
+                },
+
+                // Logika Highlight Multi-Kata
                 highlightText(text) {
                     if (!this.search.trim()) return text;
                     
                     try {
-                        // Escaping regex characters agar pencarian aman
-                        const escapedSearch = this.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                        const regex = new RegExp(`(${escapedSearch})`, 'gi');
+                        // Pecah kata kunci, bersihkan karakter regex, gabung dengan operator OR (|)
+                        const keywords = this.search.trim().split(/\s+/).filter(k => k.length > 0);
+                        const pattern = keywords
+                            .map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+                            .join('|');
                         
-                        // Mengganti teks yang cocok dengan tag span ber-style
+                        const regex = new RegExp(`(${pattern})`, 'gi');
                         return String(text).replace(regex, '<span class="highlight">$1</span>');
                     } catch (e) {
                         return text;
@@ -241,39 +278,6 @@
                         this.sortDir = 'asc';
                     }
                     this.page = 1;
-                },
-
-                get filteredItems() {
-                    let results = [...this.items];
-
-                    if (this.search) {
-                        const q = this.search.toLowerCase();
-                        results = results.filter(item => 
-                            String(item['Nama Barang'] || '').toLowerCase().includes(q) ||
-                            String(item['ID Barang'] || '').toLowerCase().includes(q) ||
-                            String(item['Kode Rekening'] || '').toLowerCase().includes(q)
-                        );
-                    }
-
-                    if (this.sortKey) {
-                        results.sort((a, b) => {
-                            let aVal = a[this.sortKey];
-                            let bVal = b[this.sortKey];
-
-                            if (this.sortKey === 'Harga Maksimal') {
-                                aVal = this.cleanNumeric(aVal);
-                                bVal = this.cleanNumeric(bVal);
-                            } else {
-                                aVal = String(aVal || '').toLowerCase();
-                                bVal = String(bVal || '').toLowerCase();
-                            }
-
-                            if (aVal < bVal) return this.sortDir === 'asc' ? -1 : 1;
-                            if (aVal > bVal) return this.sortDir === 'asc' ? 1 : -1;
-                            return 0;
-                        });
-                    }
-                    return results;
                 },
 
                 get totalPages() {
